@@ -48,10 +48,24 @@ import com.example.myapplication.ui.theme.MyApplicationTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
-        setContent {
-            MyApplicationTheme {
-                TaskTracker()
+        try {
+            enableEdgeToEdge()
+            setContent {
+                MyApplicationTheme {
+                    // Test with simple version first
+                    SimpleTest()
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Ultimate fallback
+            setContent {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("App started but crashed: ${e.message}")
+                }
             }
         }
     }
@@ -60,68 +74,82 @@ class MainActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskTracker() {
-    val tasks = remember { mutableStateListOf<Task>() }
-    var newTaskTitle by remember { mutableStateOf("") }
+    try {
+        val tasks = remember { mutableStateListOf<Task>() }
+        var newTaskTitle by remember { mutableStateOf("") }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "My Daily Tasks",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    ) 
-                },
-                colors = TopAppBarDefaults.topAppBarColors()
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            // Task List
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(tasks) { task ->
-                    TaskItem(
-                        task = task,
-                        onTaskComplete = { updatedTask ->
-                            val index = tasks.indexOf(task)
-                            if (index != -1) {
-                                tasks[index] = updatedTask
-                            }
-                        },
-                        onTaskDelete = {
-                            tasks.remove(task)
-                        }
-                    )
-                }
+        Scaffold(
+            topBar = {
+                TopAppBar(
+                    title = { 
+                        Text(
+                            "My Daily Tasks",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 20.sp
+                        ) 
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors()
+                )
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Add Task Section
-            AddTaskSection(
-                taskTitle = newTaskTitle,
-                onTaskTitleChange = { newTaskTitle = it },
-                onAddTask = {
-                    if (newTaskTitle.isNotBlank()) {
-                        tasks.add(
-                            Task(
-                                id = System.currentTimeMillis().toString(),
-                                title = newTaskTitle.trim()
-                            )
+        ) { paddingValues ->
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp)
+            ) {
+                // Task List
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(tasks) { task ->
+                        TaskItem(
+                            task = task,
+                            onTaskComplete = { updatedTask ->
+                                val index = tasks.indexOf(task)
+                                if (index != -1) {
+                                    tasks[index] = updatedTask
+                                }
+                            },
+                            onTaskDelete = {
+                                tasks.remove(task)
+                            }
                         )
-                        newTaskTitle = ""
                     }
                 }
-            )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Add Task Section
+                AddTaskSection(
+                    taskTitle = newTaskTitle,
+                    onTaskTitleChange = { newTaskTitle = it },
+                    onAddTask = {
+                        if (newTaskTitle.isNotBlank()) {
+                            tasks.add(
+                                Task(
+                                    id = System.currentTimeMillis().toString(),
+                                    title = newTaskTitle.trim()
+                                )
+                            )
+                            newTaskTitle = ""
+                        }
+                    }
+                )
+            }
+        }
+    } catch (e: Exception) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text("Error in TaskTracker: ${e.message}")
+                Text("Check Logcat for details")
+            }
         }
     }
 }
