@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.Task
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -25,14 +28,17 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,17 +49,23 @@ import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
+    private val database by lazy { TaskDatabase.getDatabase(this) }
+    private val taskViewModel: TaskViewModel by viewModels {
+        TaskViewModelFactory(database.taskDao())
+    }
+    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         try {
             enableEdgeToEdge()
             setContent {
                 MyApplicationTheme {
-                    // Test with simple version first
-                    SimpleTest()
+                    AppNavigation(taskViewModel = taskViewModel)
                 }
             }
         } catch (e: Exception) {
@@ -73,83 +85,59 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskTracker() {
-    try {
-        val tasks = remember { mutableStateListOf<Task>() }
-        var newTaskTitle by remember { mutableStateOf("") }
+fun TaskTracker(taskViewModel: TaskViewModel = viewModel()) {
+    var newTaskTitle by remember { mutableStateOf("") }
+    val tasks by taskViewModel.tasks.collectAsState()
 
-        Scaffold(
-            topBar = {
-                TopAppBar(
-                    title = { 
-                        Text(
-                            "My Daily Tasks",
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 20.sp
-                        ) 
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors()
-                )
-            }
-        ) { paddingValues ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .padding(16.dp)
-            ) {
-                // Task List
-                LazyColumn(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(tasks) { task ->
-                        TaskItem(
-                            task = task,
-                            onTaskComplete = { updatedTask ->
-                                val index = tasks.indexOf(task)
-                                if (index != -1) {
-                                    tasks[index] = updatedTask
-                                }
-                            },
-                            onTaskDelete = {
-                                tasks.remove(task)
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Add Task Section
-                AddTaskSection(
-                    taskTitle = newTaskTitle,
-                    onTaskTitleChange = { newTaskTitle = it },
-                    onAddTask = {
-                        if (newTaskTitle.isNotBlank()) {
-                            tasks.add(
-                                Task(
-                                    id = System.currentTimeMillis().toString(),
-                                    title = newTaskTitle.trim()
-                                )
-                            )
-                            newTaskTitle = ""
-                        }
-                    }
-                )
-            }
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { 
+                    Text(
+                        "My Daily Tasks",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    ) 
+                },
+                colors = TopAppBarDefaults.topAppBarColors()
+            )
         }
-    } catch (e: Exception) {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp)
         ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
+            // Task List
+            LazyColumn(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("Error in TaskTracker: ${e.message}")
-                Text("Check Logcat for details")
+                items(tasks) { task ->
+                    TaskItem(
+                        task = task,
+                        onTaskComplete = { 
+                            taskViewModel.toggleTaskCompletion(task)
+                        },
+                        onTaskDelete = {
+                            taskViewModel.deleteTask(task)
+                        }
+                    )
+                }
             }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Add Task Section
+            AddTaskSection(
+                taskTitle = newTaskTitle,
+                onTaskTitleChange = { newTaskTitle = it },
+                onAddTask = {
+                    taskViewModel.addTask(newTaskTitle)
+                    newTaskTitle = ""
+                }
+            )
         }
     }
 }
@@ -232,6 +220,35 @@ fun AddTaskSection(
             )
             Spacer(modifier = Modifier.padding(horizontal = 4.dp))
             Text("Add")
+        }
+    }
+}
+
+@Composable
+fun AppNavigation(taskViewModel: TaskViewModel) {
+    var selectedScreen by remember { mutableStateOf("tasks") }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar {
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.Task, contentDescription = "Tasks") },
+                    label = { Text("Tasks") },
+                    selected = selectedScreen == "tasks",
+                    onClick = { selectedScreen = "tasks" }
+                )
+                NavigationBarItem(
+                    icon = { Icon(Icons.Default.FormatQuote, contentDescription = "Inspiration") },
+                    label = { Text("Inspiration") },
+                    selected = selectedScreen == "inspiration",
+                    onClick = { selectedScreen = "inspiration" }
+                )
+            }
+        }
+    ) { paddingValues ->
+        when (selectedScreen) {
+            "tasks" -> TaskTracker(taskViewModel = taskViewModel)
+            "inspiration" -> InspoScreen()
         }
     }
 }
