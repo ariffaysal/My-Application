@@ -28,7 +28,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedTextField
@@ -44,13 +43,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.compose.viewModel as androidxViewModel
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -85,7 +83,7 @@ class MainActivity : ComponentActivity() {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskTracker(taskViewModel: TaskViewModel = viewModel()) {
+fun TaskTracker(taskViewModel: TaskViewModel = androidxViewModel()) {
     var newTaskTitle by remember { mutableStateOf("") }
     val tasks by taskViewModel.tasks.collectAsState()
 
@@ -174,9 +172,9 @@ fun TaskItem(
                     fontSize = 16.sp,
                     textDecoration = if (task.completed) TextDecoration.LineThrough else null,
                     color = if (task.completed) 
-                        androidx.compose.ui.graphics.Color.Gray 
+                        Color.Gray 
                     else 
-                        androidx.compose.ui.graphics.Color.Black
+                        Color.Black
                 )
             }
             
@@ -184,7 +182,7 @@ fun TaskItem(
                 Icon(
                     imageVector = Icons.Default.Delete,
                     contentDescription = "Delete task",
-                    tint = androidx.compose.ui.graphics.Color.Red
+                    tint = Color.Red
                 )
             }
         }
@@ -232,13 +230,13 @@ fun AppNavigation(taskViewModel: TaskViewModel) {
         bottomBar = {
             NavigationBar {
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.Task, contentDescription = "Tasks") },
+                    icon = { Icon(Icons.Filled.Task, contentDescription = "Tasks") },
                     label = { Text("Tasks") },
                     selected = selectedScreen == "tasks",
                     onClick = { selectedScreen = "tasks" }
                 )
                 NavigationBarItem(
-                    icon = { Icon(Icons.Default.FormatQuote, contentDescription = "Inspiration") },
+                    icon = { Icon(Icons.Filled.FormatQuote, contentDescription = "Inspiration") },
                     label = { Text("Inspiration") },
                     selected = selectedScreen == "inspiration",
                     onClick = { selectedScreen = "inspiration" }
@@ -246,9 +244,15 @@ fun AppNavigation(taskViewModel: TaskViewModel) {
             }
         }
     ) { paddingValues ->
-        when (selectedScreen) {
-            "tasks" -> TaskTracker(taskViewModel = taskViewModel)
-            "inspiration" -> InspoScreen()
+        Column(
+            modifier = Modifier
+                .padding(paddingValues)
+                .fillMaxSize()
+        ) {
+            when (selectedScreen) {
+                "tasks" -> TaskTracker(taskViewModel = taskViewModel)
+                "inspiration" -> InspoScreen()
+            }
         }
     }
 }
