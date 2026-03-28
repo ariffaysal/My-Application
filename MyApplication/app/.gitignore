@@ -1,0 +1,15 @@
+/build
+# Gradle files
+.gradle/
+build/
+
+# Local configuration
+local.properties
+
+# Android Studio internal files
+.idea/
+*.iml
+
+# Specific cache folders
+MyApplication/caches/
+MyApplication/build/
