@@ -16,6 +16,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,20 +24,30 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.myapplication.UserRole
+import com.example.myapplication.ui.viewmodel.AuthViewModel
 
 @Composable
 fun LoginScreen(
     onLoginSuccess: (UserRole) -> Unit,
-    modifier: Modifier = Modifier
+    onNavigateToSignup: () -> Unit,
+    modifier: Modifier = Modifier,
+    authViewModel: AuthViewModel = viewModel(
+        factory = androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.getInstance(
+            LocalContext.current.applicationContext as android.app.Application
+        )
+    )
 ) {
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -120,22 +131,35 @@ fun LoginScreen(
 
         Button(
             onClick = {
-                val role = authenticateUser(username, password)
-                if (role != null) {
-                    onLoginSuccess(role)
-                } else {
-                    errorMessage = "Invalid credentials"
+                isLoading = true
+                authViewModel.login(username, password) { role ->
+                    isLoading = false
+                    if (role != null) {
+                        onLoginSuccess(role)
+                    } else {
+                        errorMessage = "Invalid credentials"
+                    }
                 }
             },
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !isLoading
         ) {
-            Text("Login")
+            Text(if (isLoading) "Signing in..." else "Login")
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        TextButton(
+            onClick = onNavigateToSignup,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Create Account")
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "Demo Credentials:",
+            text = "Demo Credentials (or create your own):",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -159,14 +183,5 @@ fun LoginScreen(
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-    }
-}
-
-private fun authenticateUser(username: String, password: String): UserRole? {
-    return when {
-        username == "admin" && password == "admin" -> UserRole.ADMIN
-        username == "hr" && password == "hr" -> UserRole.HR
-        username == "employee" && password == "employee" -> UserRole.EMPLOYEE
-        else -> null
     }
 }

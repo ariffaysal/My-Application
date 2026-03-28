@@ -16,6 +16,7 @@ import com.example.myapplication.ui.screens.AdminDashboardScreen
 import com.example.myapplication.ui.screens.EmployeeDashboardScreen
 import com.example.myapplication.ui.screens.HRDashboardScreen
 import com.example.myapplication.ui.screens.LoginScreen
+import com.example.myapplication.ui.screens.SignupScreen
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
@@ -36,6 +37,7 @@ class MainActivity : ComponentActivity() {
 
 sealed class Screen(val route: String) {
     data object Login : Screen("login")
+    data object Signup : Screen("signup")
     data object AdminDashboard : Screen("admin_dashboard")
     data object HRDashboard : Screen("hr_dashboard")
     data object EmployeeDashboard : Screen("employee_dashboard")
@@ -64,6 +66,22 @@ fun AppNavigation(modifier: Modifier = Modifier) {
                             popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
+                },
+                onNavigateToSignup = {
+                    navController.navigate(Screen.Signup.route)
+                }
+            )
+        }
+
+        composable(Screen.Signup.route) {
+            SignupScreen(
+                onSignupSuccess = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(Screen.Signup.route) { inclusive = true }
+                    }
+                },
+                onNavigateBack = {
+                    navController.navigateUp()
                 }
             )
         }
