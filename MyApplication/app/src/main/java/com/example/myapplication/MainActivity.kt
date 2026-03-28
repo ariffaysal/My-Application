@@ -4,254 +4,30 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.FormatQuote
-import androidx.compose.material.icons.filled.Task
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextDecoration
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.viewmodel.compose.viewModel as androidxViewModel
+import com.example.myapplication.data.database.TaskDatabase
+import com.example.myapplication.data.repository.AnnouncementRepository
+import com.example.myapplication.data.repository.AuthRepository
+import com.example.myapplication.data.repository.TaskRepository
+import com.example.myapplication.navigation.AuthNavGraph
 import com.example.myapplication.ui.theme.MyApplicationTheme
 
 class MainActivity : ComponentActivity() {
-    private val database by lazy { TaskDatabase.getDatabase(this) }
-    private val taskViewModel: TaskViewModel by viewModels {
-        TaskViewModelFactory(database.taskDao())
-    }
-    
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        try {
-            enableEdgeToEdge()
-            setContent {
-                MyApplicationTheme {
-                    AppNavigation(taskViewModel = taskViewModel)
-                }
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            // Ultimate fallback
-            setContent {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("App started but crashed: ${e.message}")
-                }
-            }
-        }
-    }
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun TaskTracker(taskViewModel: TaskViewModel = androidxViewModel()) {
-    var newTaskTitle by remember { mutableStateOf("") }
-    val tasks by taskViewModel.tasks.collectAsState()
+        val database = TaskDatabase.getDatabase(this)
+        val authRepository = AuthRepository(database.userDao())
+        val taskRepository = TaskRepository(database.taskDao(), database.userDao())
+        val announcementRepository = AnnouncementRepository(database.announcementDao())
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { 
-                    Text(
-                        "My Daily Tasks",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    ) 
-                },
-                colors = TopAppBarDefaults.topAppBarColors()
-            )
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp)
-        ) {
-            // Task List
-            LazyColumn(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                items(tasks) { task ->
-                    TaskItem(
-                        task = task,
-                        onTaskComplete = { 
-                            taskViewModel.toggleTaskCompletion(task)
-                        },
-                        onTaskDelete = {
-                            taskViewModel.deleteTask(task)
-                        }
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Add Task Section
-            AddTaskSection(
-                taskTitle = newTaskTitle,
-                onTaskTitleChange = { newTaskTitle = it },
-                onAddTask = {
-                    taskViewModel.addTask(newTaskTitle)
-                    newTaskTitle = ""
-                }
-            )
-        }
-    }
-}
-
-@Composable
-fun TaskItem(
-    task: Task,
-    onTaskComplete: (Task) -> Unit,
-    onTaskDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Checkbox(
-                    checked = task.completed,
-                    onCheckedChange = { isChecked ->
-                        onTaskComplete(task.copy(completed = isChecked))
-                    }
+        enableEdgeToEdge()
+        setContent {
+            MyApplicationTheme {
+                AuthNavGraph(
+                    authRepository = authRepository,
+                    taskRepository = taskRepository,
+                    announcementRepository = announcementRepository
                 )
-                Spacer(modifier = Modifier.padding(horizontal = 8.dp))
-                Text(
-                    text = task.title,
-                    fontSize = 16.sp,
-                    textDecoration = if (task.completed) TextDecoration.LineThrough else null,
-                    color = if (task.completed) 
-                        Color.Gray 
-                    else 
-                        Color.Black
-                )
-            }
-            
-            IconButton(onClick = onTaskDelete) {
-                Icon(
-                    imageVector = Icons.Default.Delete,
-                    contentDescription = "Delete task",
-                    tint = Color.Red
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun AddTaskSection(
-    taskTitle: String,
-    onTaskTitleChange: (String) -> Unit,
-    onAddTask: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        OutlinedTextField(
-            value = taskTitle,
-            onValueChange = onTaskTitleChange,
-            modifier = Modifier.weight(1f),
-            label = { Text("Enter new task") },
-            singleLine = true
-        )
-        
-        Button(
-            onClick = onAddTask,
-            enabled = taskTitle.isNotBlank()
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "Add task"
-            )
-            Spacer(modifier = Modifier.padding(horizontal = 4.dp))
-            Text("Add")
-        }
-    }
-}
-
-@Composable
-fun AppNavigation(taskViewModel: TaskViewModel) {
-    var selectedScreen by remember { mutableStateOf("tasks") }
-
-    Scaffold(
-        bottomBar = {
-            NavigationBar {
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.Task, contentDescription = "Tasks") },
-                    label = { Text("Tasks") },
-                    selected = selectedScreen == "tasks",
-                    onClick = { selectedScreen = "tasks" }
-                )
-                NavigationBarItem(
-                    icon = { Icon(Icons.Filled.FormatQuote, contentDescription = "Inspiration") },
-                    label = { Text("Inspiration") },
-                    selected = selectedScreen == "inspiration",
-                    onClick = { selectedScreen = "inspiration" }
-                )
-            }
-        }
-    ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .padding(paddingValues)
-                .fillMaxSize()
-        ) {
-            when (selectedScreen) {
-                "tasks" -> TaskTracker(taskViewModel = taskViewModel)
-                "inspiration" -> InspoScreen()
             }
         }
     }
